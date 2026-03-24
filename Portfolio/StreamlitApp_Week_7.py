@@ -68,7 +68,7 @@ MODEL_INFO = {
         "endpoint": aws_endpoint,
         "explainer": 'explainer_bitcoin.shap',
         "pipeline": 'finalized_model.tar.gz',
-        "keys": ["MPWR","AAPL"],
+        "keys": ["YUM","MCD"],
         "inputs": [{"name": k``, "type": "number", "min": 0, "default": DEFAULT_VAL, "step": 100.0}]
 }
 
