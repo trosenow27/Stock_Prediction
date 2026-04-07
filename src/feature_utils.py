@@ -4,10 +4,9 @@ import datetime
 import yfinance as yf
 import pandas_datareader.data as web
 import requests
-#from datetime import datetime, timedelta
 import os
 import sys
-import json #
+import json
 
 from src.Custom_Classes import FeatureEngineer
 
@@ -23,12 +22,11 @@ def extract_features():
     idx_tickers = ['SP500', 'DJIA', 'VIXCLS']
     
     stk_data = yf.download(stk_tickers, start=START_DATE, end=END_DATE, auto_adjust=False)
-    #stk_data = web.DataReader(stk_tickers, 'yahoo')
     ccy_data = web.DataReader(ccy_tickers, 'fred', start=START_DATE, end=END_DATE)
     idx_data = web.DataReader(idx_tickers, 'fred', start=START_DATE, end=END_DATE)
 
     Y = np.log(stk_data.loc[:, ('Adj Close', 'MSFT')]).diff(return_period).shift(-return_period)
-    Y.name = Y.name[-1]+'_Future'
+    Y.name = Y.name[-1] + '_Future'
     
     X1 = np.log(stk_data.loc[:, ('Adj Close', ('GOOGL', 'IBM'))]).diff(return_period)
     X1.columns = X1.columns.droplevel()
@@ -41,11 +39,11 @@ def extract_features():
     Y = dataset.loc[:, Y.name]
     X = dataset.loc[:, X.columns]
     dataset.index.name = 'Date'
-    #dataset.to_csv(r"./test_data.csv")
     features = dataset.sort_index()
     features = features.reset_index(drop=True)
-    features = features.iloc[:,1:]
+    features = features.iloc[:, 1:]
     return features
+
 
 def extract_features_pair():
 
@@ -69,14 +67,15 @@ def extract_features_pair():
     features = features.reset_index(drop=True)
     return features
 
-def get_bitcoin_historical_prices(days = 60):
+
+def get_bitcoin_historical_prices(days=60):
     
     BASE_URL = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
     
     params = {
         'vs_currency': 'usd',
         'days': days,
-        'interval': 'daily' # Ensure we get daily granularity
+        'interval': 'daily'
     }
     response = requests.get(BASE_URL, params=params)
     data = response.json()
@@ -86,6 +85,7 @@ def get_bitcoin_historical_prices(days = 60):
     df = df[['Date', 'Close Price (USD)']].set_index('Date')
     return df
 
+
 def convert_input_pca_regression(request_body, request_content_type):
     print(f"Receiving data of type: {request_content_type}")
     
@@ -93,58 +93,40 @@ def convert_input_pca_regression(request_body, request_content_type):
     project_root = os.path.abspath(os.path.join(current_dir, '..'))
     file_path = os.path.join(project_root, 'Portfolio/SP500Data.csv')
 
-    dataset = pd.read_csv(file_path,index_col=0)
+    dataset = pd.read_csv(file_path, index_col=0)
 
-    target = 'MSFT'
+    target = 'GOOGL'
+    return_period = 5
 
-    option = 2
+    SP500_1 = 'GOOGL_CR_Cum'
+    GOOGL_CR_Cum = json.loads(request_body)[SP500_1]
 
-    if option == 2:
+    SP500_2 = 'AMZN_CR_Cum'
+    AMZN_CR_Cum = json.loads(request_body)[SP500_2]
 
-        X = FeatureEngineer(windows=[10,15]).transform(dataset[[target]])
-    
-        techIndicator_1 = 'RSI_15'
-        RSI_15 = json.loads(request_body)[techIndicator_1]
-        techIndicator_2 = 'MOM_15'
-        MOM_15 = json.loads(request_body)[techIndicator_2]
+    # Build cumulative return features for all non-target stocks
+    X = np.log(dataset.drop([target], axis=1)).diff(return_period)
+    X = np.exp(X).cumsum()
+    X.columns = [name + "_CR_Cum" for name in X.columns]
 
-        # Calculate the distance
-        distances = np.sqrt(
-            (X[techIndicator_1] - RSI_15)**2 + 
-            (X[techIndicator_2] - MOM_15)**2
-        )
-        
-        closest_index = distances.idxmin()
-        closest_row = X.loc[[closest_index]]
-    
-        closest_row[techIndicator_1] = RSI_15
-        closest_row[techIndicator_2] = MOM_15
-    
-        return closest_row
-    else:
+    # Add target cumulative return feature back in for distance matching
+    target_feature = np.log(dataset[[target]]).diff(return_period)
+    target_feature = np.exp(target_feature).cumsum()
+    target_feature.columns = [target + "_CR_Cum"]
 
-        return_period = 5
+    X = pd.concat([target_feature, X], axis=1)
 
-        SP500_1 = 'IBM_CR_Cum'
-        IBM_CR_Cum = json.loads(request_body)[SP500_1]
-        SP500_2 = 'NVDA_CR_Cum'
-        NVDA_CR_Cum = json.loads(request_body)[SP500_2]
+    # Distance based on the two user-provided inputs
+    distances = np.sqrt(
+        (X[SP500_1] - GOOGL_CR_Cum) ** 2 +
+        (X[SP500_2] - AMZN_CR_Cum) ** 2
+    )
 
-        X = np.log(dataset.drop([target],axis=1)).diff(return_period)
-        X = np.exp(X).cumsum()
-        X.columns = [name + "_CR_Cum" for name in X.columns]
-        
-        # Calculate the distance
-        distances = np.sqrt(
-            (X[SP500_1] - IBM_CR_Cum)**2 + 
-            (X[SP500_2] - NVDA_CR_Cum)**2
-        )
-        
-        closest_index = distances.idxmin()
-        closest_row = X.loc[[closest_index]]
-    
-        closest_row[SP500_1] = IBM_CR_Cum
-        closest_row[SP500_2] = NVDA_CR_Cum
-    
-        return closest_row
-    
+    closest_index = distances.idxmin()
+    closest_row = X.loc[[closest_index]].copy()
+
+    # Overwrite the two selected features with the user's inputs
+    closest_row[SP500_1] = GOOGL_CR_Cum
+    closest_row[SP500_2] = AMZN_CR_Cum
+
+    return closest_row
