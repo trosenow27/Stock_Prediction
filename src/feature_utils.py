@@ -8,9 +8,6 @@ import os
 import sys
 import json
 
-from src.Custom_Classes import FeatureEngineer
-
-
 def extract_features():
 
     return_period = 5
