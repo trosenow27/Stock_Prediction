@@ -84,7 +84,7 @@ if submitted:
     except Exception:
         pass
 
-    prediction = model.predict(input_df.values)[0]
+    prediction = model.predict(input_df.to_numpy())[0]
 
     st.subheader("Prediction")
 
