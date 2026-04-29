@@ -77,14 +77,14 @@ if submitted:
         "loan_income_ratio": loan_income_ratio
     }])
 
-   # Make sure input columns match the model's expected training columns
-try:
-    expected_features = list(model.named_steps["imputer"].feature_names_in_)
-    input_df = input_df.reindex(columns=expected_features, fill_value=0)
-except Exception:
-    pass
+    # Make sure input columns match the model's expected training columns
+    try:
+        expected_features = list(model.named_steps["imputer"].feature_names_in_)
+        input_df = input_df.reindex(columns=expected_features, fill_value=0)
+    except Exception:
+        pass
 
-prediction = model.predict(input_df)[0]
+    prediction = model.predict(input_df)[0]
 
     st.subheader("Prediction")
 
