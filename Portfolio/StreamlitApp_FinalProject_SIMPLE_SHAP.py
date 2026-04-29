@@ -77,8 +77,10 @@ if submitted:
         "loan_income_ratio": loan_income_ratio
     }])
 
-    prediction = model.predict(input_df)[0]
-    prediction_proba = model.predict_proba(input_df)[0]
+    input_array = input_df.to_numpy()
+    
+    prediction = model.predict(input_array)[0]
+    prediction_proba = model.predict_proba(input_array)[0]
 
     st.subheader("Prediction")
 
@@ -96,7 +98,7 @@ if submitted:
 
     try:
         # The model is a pipeline: imputer -> scaler -> logistic regression
-        transformed_input = model[:-1].transform(input_df)
+        transformed_input = model[:-1].transform(input_array)
         feature_names = input_df.columns.tolist()
 
         # Explain the final Logistic Regression model
