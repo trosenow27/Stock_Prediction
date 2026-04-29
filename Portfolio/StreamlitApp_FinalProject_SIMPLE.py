@@ -11,7 +11,12 @@ st.write(
 )
 
 # Load local model
-model = joblib.load("model.joblib")
+import os
+
+BASE_DIR = os.path.dirname(__file__)
+model_path = os.path.join(BASE_DIR, "model.joblib")
+
+model = joblib.load(model_path)
 
 with st.form("prediction_form"):
     st.subheader("Borrower / Loan Inputs")
